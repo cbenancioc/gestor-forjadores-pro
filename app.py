@@ -5,7 +5,7 @@ from supabase import create_client
 st.set_page_config(page_title="Gestor Forjadores PRO", layout="wide")
 
 # Configuración
-SUPABASE_URL = "https://jevlhjtviawzripepfoh.supabase.co"
+SUPABASE_URL = "https://cbenancioc.github.io/"
 SUPABASE_KEY = "sb_publishable_bmj25yLy8yE7cuYJc-N-kA_g_IvM2iS"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
