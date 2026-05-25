@@ -21,11 +21,11 @@ with st.sidebar:
 # --- LÓGICA DE DATOS ---
 def obtener_datos():
     try:
-        # Intentamos traer datos de la nube
         res = supabase.table('partidos').select('*').execute()
         return res.data
-    except:
-        # Si falla, devolvemos una lista vacía para que el código no se rompa
+    except Exception as e:
+        # Esto imprimirá el error real en la pantalla
+        st.error(f"DETALLE DEL ERROR: {str(e)}")
         return []
 
 # --- INTERFAZ ---
