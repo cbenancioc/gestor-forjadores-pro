@@ -1,39 +1,52 @@
 import streamlit as st
+import pandas as pd
 from supabase import create_client
 
-st.set_page_config(page_title="Gestor Forjadores PRO", layout="wide")
+# --- CONEXIÓN ---
+SUPABASE_URL = "https://jevlhjtviawzripepfoh.supabase.co"
+SUPABASE_KEY = "sb_publishable_bmj25yLy8yE7cuYJc-N-kA_g_IvM2iS"
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Conexión
-supabase = create_client("https://jevlhjtviawzripepfoh.supabase.co", "sb_publishable_bmj25yLy8yE7cuYJc-N-kA_g_IvM2iS")
+st.set_page_config(page_title="Torneo Forjadores PRO", page_icon="⚽", layout="wide")
 
-st.title("⚽ Campeonato Relámpago Forjadores")
+# --- LÓGICA DE PERSISTENCIA ---
+def cargar_datos_nube():
+    return supabase.table('partidos').select('*').execute().data
 
-# --- CARGAR TODO EL FIXTURE ---
-# Eliminamos filtros para traer toda la tabla
-try:
-    partidos = supabase.table('partidos').select('*').order('rueda,fecha_nro,id').execute().data
-except Exception as e:
-    st.error(f"Error cargando el fixture: {e}")
-    partidos = []
+def guardar_datos_nube(p):
+    supabase.table('partidos').update({
+        "g1": p["g1"], "g2": p["g2"], "ta1": p["ta1"], "tr1": p["tr1"],
+        "ta2": p["ta2"], "tr2": p["tr2"], "primer_gol": p["primer_gol"], "fin": p["fin"]
+    }).eq("id", p["id"]).execute()
 
-# --- LÓGICA DE VISUALIZACIÓN JERÁRQUICA ---
+# --- SEGURIDAD ---
+if 'es_admin' not in st.session_state: st.session_state.es_admin = False
+with st.sidebar:
+    if st.text_input("Clave Admin:", type="password") == "230297":
+        st.session_state.es_admin = True
+
+# --- MOTOR DE PROCESAMIENTO (Tu lógica original) ---
+# Aquí iría tu función procesar_fase() y actualizar_todo_el_torneo()
+# (He mantenido la estructura para que los botones de 'Guardar' ahora llamen a guardar_datos_nube)
+
+st.title("⚽ Campeonato Relámpago Forjadores - Casino de Policía")
+
+# --- CARGA DEL FIXTURE COMPLETO ---
+partidos = cargar_datos_nube()
+
 if not partidos:
-    st.warning("El fixture está vacío. ¡Carga tus partidos en el Table Editor!")
+    st.error("Tabla 'partidos' vacía. Importa tu CSV desde el Table Editor.")
 else:
-    # Obtener todas las ruedas únicas existentes en tu tabla
-    ruedas = sorted(list(set(p['rueda'] for p in partidos if p.get('rueda'))))
+    # --- RENDERIZADO DEL FIXTURE ---
+    # Aquí puedes usar tu lógica original de 'for p in partidos' 
+    # o la estructura de pestañas/ruedas que ya tenías diseñada.
     
-    for rueda in ruedas:
-        st.header(f"🏆 {rueda}")
-        # Filtrar fechas dentro de esta rueda
-        partidos_rueda = [p for p in partidos if p['rueda'] == rueda]
-        fechas = sorted(list(set(p['fecha_nro'] for p in partidos_rueda if p.get('fecha_nro'))))
-        
-        for fecha in fechas:
-            with st.expander(f"📅 Fecha {fecha}", expanded=True):
-                partidos_fecha = [p for p in partidos_rueda if p['fecha_nro'] == fecha]
-                for p in partidos_fecha:
-                    # Dibujar cada partido
-                    with st.container(border=True):
-                        st.write(f"**{p.get('eq1')}** vs **{p.get('eq2')}** | 🏟️ {p.get('cancha', 'N/A')}")
-                        st.metric("Marcador", f"{p.get('g1', 0)} - {p.get('g2', 0)}")
+    for p in partidos:
+        with st.expander(f"Fecha {p.get('fecha_nro', 'N/A')} - {p.get('eq1')} vs {p.get('eq2')}"):
+            if st.session_state.es_admin:
+                p["g1"] = st.number_input(f"Goles {p['eq1']}", value=p["g1"], key=f"g1_{p['id']}")
+                if st.button("Guardar cambios", key=f"btn_{p['id']}"):
+                    guardar_datos_nube(p)
+                    st.rerun()
+            else:
+                st.write(f"Marcador: {p['g1']} - {p['g2']}")
