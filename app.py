@@ -3,47 +3,37 @@ from supabase import create_client
 
 st.set_page_config(page_title="Gestor Forjadores PRO", layout="wide")
 
-# Configuración
-SUPABASE_URL = "https://jevlhjtviawzripepfoh.supabase.co"
-SUPABASE_KEY = "sb_publishable_bmj25yLy8yE7cuYJc-N-kA_g_IvM2iS"
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Conexión
+supabase = create_client("https://jevlhjtviawzripepfoh.supabase.co", "sb_publishable_bmj25yLy8yE7cuYJc-N-kA_g_IvM2iS")
 
-st.title("⚽ Campeonato Relámpago Forjadores - Casino de Policía")
+st.title("⚽ Campeonato Relámpago Forjadores")
 
-# --- CARGA DE DATOS ---
-partidos = supabase.table('partidos').select('*').execute().data
+# --- CARGAR TODO EL FIXTURE ---
+# Eliminamos filtros para traer toda la tabla
+try:
+    partidos = supabase.table('partidos').select('*').order('rueda,fecha_nro,id').execute().data
+except Exception as e:
+    st.error(f"Error cargando el fixture: {e}")
+    partidos = []
 
-# --- PANEL DE ADMIN (Desbloquea funciones avanzadas) ---
-if 'es_admin' not in st.session_state: st.session_state.es_admin = False
-with st.sidebar:
-    st.title("🔐 Acceso Admin")
-    if st.text_input("Clave:", type="password") == "230297":
-        st.session_state.es_admin = True
-
-# --- INTERFAZ DE GESTIÓN ---
-for p in partidos:
-    with st.container(border=True):
-        st.subheader(f"{p['equipo_local']} vs {p['equipo_visitante']}")
+# --- LÓGICA DE VISUALIZACIÓN JERÁRQUICA ---
+if not partidos:
+    st.warning("El fixture está vacío. ¡Carga tus partidos en el Table Editor!")
+else:
+    # Obtener todas las ruedas únicas existentes en tu tabla
+    ruedas = sorted(list(set(p['rueda'] for p in partidos if p.get('rueda'))))
+    
+    for rueda in ruedas:
+        st.header(f"🏆 {rueda}")
+        # Filtrar fechas dentro de esta rueda
+        partidos_rueda = [p for p in partidos if p['rueda'] == rueda]
+        fechas = sorted(list(set(p['fecha_nro'] for p in partidos_rueda if p.get('fecha_nro'))))
         
-        if st.session_state.es_admin:
-            # Campos de edición avanzada
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                g_l = st.number_input(f"Goles {p['equipo_local']}", value=p.get('goles_local', 0), key=f"gl_{p['id_partido']}")
-                a_l = st.number_input(f"Amarillas L", value=p.get('amarillas_local', 0), key=f"al_{p['id_partido']}")
-            with col2:
-                g_v = st.number_input(f"Goles {p['equipo_visitante']}", value=p.get('goles_visitante', 0), key=f"gv_{p['id_partido']}")
-                a_v = st.number_input(f"Amarillas V", value=p.get('amarillas_visitante', 0), key=f"av_{p['id_partido']}")
-            with col3:
-                primer_gol = st.text_input("Primer gol (nombre)", value=p.get('primer_gol', ''), key=f"pg_{p['id_partido']}")
-                if st.button("Guardar Cambios", key=f"btn_{p['id_partido']}"):
-                    supabase.table('partidos').update({
-                        "goles_local": g_l, "goles_visitante": g_v,
-                        "amarillas_local": a_l, "amarillas_visitante": a_v,
-                        "primer_gol": primer_gol
-                    }).eq("id_partido", p['id_partido']).execute()
-                    st.rerun()
-        else:
-            # Vista pública
-            st.metric("Marcador", f"{p.get('goles_local')} - {p.get('goles_visitante')}")
-            st.caption(f"Primer gol: {p.get('primer_gol', 'N/A')}")
+        for fecha in fechas:
+            with st.expander(f"📅 Fecha {fecha}", expanded=True):
+                partidos_fecha = [p for p in partidos_rueda if p['fecha_nro'] == fecha]
+                for p in partidos_fecha:
+                    # Dibujar cada partido
+                    with st.container(border=True):
+                        st.write(f"**{p.get('eq1')}** vs **{p.get('eq2')}** | 🏟️ {p.get('cancha', 'N/A')}")
+                        st.metric("Marcador", f"{p.get('g1', 0)} - {p.get('g2', 0)}")
